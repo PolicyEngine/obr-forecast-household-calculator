@@ -98,7 +98,10 @@ const HouseholdForm: React.FC = () => {
     setError(null);
 
     try {
-      const response = await axios.post('/calculate', household);
+      // Use absolute path to ensure API requests don't conflict with static routes
+      const response = await axios.post('/api/calculate', household, {
+        headers: { 'Content-Type': 'application/json' }
+      });
       setResult(response.data);
     } catch (err) {
       setError('Failed to calculate forecast. Please check your inputs and try again.');

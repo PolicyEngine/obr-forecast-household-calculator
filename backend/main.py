@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
@@ -135,21 +135,9 @@ SPRING_25_OBR_FORECAST = {
     },
 }
 
-app = FastAPI(title="OBR Forecast Household Calculator")
+api = APIRouter()
 
-# Enable CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with specific origins
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Serve static files
-static_files_dir = os.environ.get("STATIC_FILES_DIR", "../frontend/out")
-if os.path.exists(static_files_dir):
-    app.mount("/", StaticFiles(directory=static_files_dir, html=True), name="static")
+# API routes will be defined below, don't mount static files yet
 
 # Data models
 class GrowthFactors(BaseModel):
@@ -280,11 +268,7 @@ def create_custom_growth_factors(custom_factors: GrowthFactors) -> dict:
     
     return custom_forecast
 
-@app.get("/")
-def read_root():
-    return {"message": "OBR Forecast Household Calculator API"}
-
-@app.post("/calculate", response_model=ForecastResult)
+@api.post("/api/calculate", response_model=ForecastResult)
 def calculate_forecast(household: Household):
     if household.age < 16:
         raise HTTPException(status_code=400, detail="Age must be at least 16")
@@ -333,6 +317,45 @@ def calculate_forecast(household: Household):
     
     return result
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
+# Import and handle static file routes
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
+
+app = FastAPI(title="OBR Forecast Household Calculator")
+app.include_router(api)
+
+# Setup API routes first
+# Then setup static file serving (must be done after API routes)
+static_dir = os.environ.get("STATIC_FILES_DIR", "../frontend/out")
+static_path = Path(static_dir)
+
+# Only serve static files if the directory exists
+if static_path.exists() and static_path.is_dir():
+    app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
+else:
+    # For development, still implement the catch-all for SPA
+    from fastapi.responses import FileResponse
+    
+    @app.get("/{path:path}")
+    async def catch_all(path: str):
+        # Skip API routes
+        if path.startswith("api/"):
+            return {"message": f"Route {path} not found"}
+        
+        # For non-API routes, try to serve from static dir if it exists
+        index_path = Path(static_dir) / "index.html"
+        if static_path.exists() and static_path.is_dir() and index_path.exists():
+            return FileResponse(index_path)
+        
+        # If static dir doesn't exist, return a message
+        return {"message": "Frontend not built yet. This endpoint is for development only."}
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, replace with specific origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
