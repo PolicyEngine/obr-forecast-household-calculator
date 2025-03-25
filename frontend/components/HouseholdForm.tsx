@@ -98,7 +98,7 @@ const HouseholdForm: React.FC = () => {
     setError(null);
 
     try {
-      const response = await axios.post('http://localhost:8000/calculate', household);
+      const response = await axios.post('/calculate', household);
       setResult(response.data);
     } catch (err) {
       setError('Failed to calculate forecast. Please check your inputs and try again.');

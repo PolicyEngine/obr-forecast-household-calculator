@@ -1,5 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+import os
 from pydantic import BaseModel
 from typing import List, Optional, Dict
 from policyengine_uk import Simulation, Microsimulation
@@ -143,6 +145,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Serve static files
+static_files_dir = os.environ.get("STATIC_FILES_DIR", "../frontend/out")
+if os.path.exists(static_files_dir):
+    app.mount("/", StaticFiles(directory=static_files_dir, html=True), name="static")
 
 # Data models
 class GrowthFactors(BaseModel):

@@ -5,3 +5,4 @@ python-dotenv==1.0.1
 pytest==8.0.2
 httpx==0.27.0
 policyengine_uk
+aiofiles
