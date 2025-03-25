@@ -29,7 +29,60 @@ microdata = Microsimulation(dataset="hf://policyengine/policyengine-uk-data/enha
     "child_index",
 ])
 
+# Autumn 2024 OBR Forecast
 AUTUMN_24_OBR_FORECAST = {
+    "gov.obr.employment_income": {
+        "year:2025:1": 1215.6,
+        "year:2026:1": 1246.5,
+        "year:2027:1": 1277.7,
+        "year:2028:1": 1312.9,
+        "year:2029:1": 1352.9,
+        "year:2030:1": 1380.36,
+        "year:2031:1": 1407.82,
+        "year:2032:1": 1435.28,
+        "year:2033:1": 1462.74,
+        "year:2034:1": 1490.2,
+    },
+    "gov.obr.mixed_income": {
+        "year:2025:1": 177.6,
+        "year:2026:1": 196.7,
+        "year:2027:1": 205.3,
+        "year:2028:1": 214.6,
+        "year:2029:1": 225.0,
+        "year:2030:1": 232.34,
+        "year:2031:1": 239.68,
+        "year:2032:1": 247.02,
+        "year:2033:1": 254.36,
+        "year:2034:1": 261.7,
+    },
+    "gov.obr.non_labour_income": {
+        "year:2025:1": 460.8,
+        "year:2026:1": 512.7,
+        "year:2027:1": 535.0,
+        "year:2028:1": 554.0,
+        "year:2029:1": 571.8,
+        "year:2030:1": 588.38,
+        "year:2031:1": 604.96,
+        "year:2032:1": 621.54,
+        "year:2033:1": 638.12,
+        "year:2034:1": 654.7,
+    },
+    "gov.obr.consumer_price_index": {
+        "year:2025:1": 138.1,
+        "year:2026:1": 141.1,
+        "year:2027:1": 144.1,
+        "year:2028:1": 147.1,
+        "year:2029:1": 150.1,
+        "year:2030:1": 152.5,
+        "year:2031:1": 154.9,
+        "year:2032:1": 157.3,
+        "year:2033:1": 159.7,
+        "year:2034:1": 162.1,
+    },
+}
+
+# Spring 2025 OBR Forecast - Default to Autumn 2024 values, update these when the new forecast is released
+SPRING_25_OBR_FORECAST = {
     "gov.obr.employment_income": {
         "year:2025:1": 1215.6,
         "year:2026:1": 1246.5,
@@ -109,9 +162,12 @@ class Household(BaseModel):
 class ForecastResult(BaseModel):
     income_2025: float
     income_2030_obr: float
+    income_2030_autumn: float
     income_2030_custom: Optional[float] = None
     absolute_change_obr: float
     percentage_change_obr: float
+    forecast_difference: float
+    forecast_percentage_difference: float
     absolute_change_custom: Optional[float] = None
     percentage_change_custom: Optional[float] = None
 
@@ -232,18 +288,28 @@ def calculate_forecast(household: Household):
     # Calculate income for 2025
     income_2025 = float(calculate_household(situation, reform=AUTUMN_24_OBR_FORECAST, year=2025))
     
-    # Calculate income for 2030 using OBR forecast
-    income_2030_obr = float(calculate_household(situation, reform=AUTUMN_24_OBR_FORECAST, year=2030))
+    # Calculate income for 2030 using Autumn 2024 OBR forecast
+    income_2030_autumn = float(calculate_household(situation, reform=AUTUMN_24_OBR_FORECAST, year=2030))
+    
+    # Calculate income for 2030 using Spring 2025 OBR forecast
+    income_2030_spring = float(calculate_household(situation, reform=SPRING_25_OBR_FORECAST, year=2030))
     
     # Calculate changes for OBR forecast
-    absolute_change_obr = income_2030_obr - income_2025
+    absolute_change_obr = income_2030_spring - income_2025
     percentage_change_obr = (absolute_change_obr / income_2025 * 100) if income_2025 > 0 else 0
+    
+    # Calculate difference between forecasts
+    forecast_difference = income_2030_spring - income_2030_autumn
+    forecast_percentage_difference = (forecast_difference / income_2030_autumn * 100) if income_2030_autumn > 0 else 0
     
     result = ForecastResult(
         income_2025=round(income_2025, 2),
-        income_2030_obr=round(income_2030_obr, 2),
+        income_2030_obr=round(income_2030_spring, 2),
+        income_2030_autumn=round(income_2030_autumn, 2),
         absolute_change_obr=round(absolute_change_obr, 2),
-        percentage_change_obr=round(percentage_change_obr, 2)
+        percentage_change_obr=round(percentage_change_obr, 2),
+        forecast_difference=round(forecast_difference, 2),
+        forecast_percentage_difference=round(forecast_percentage_difference, 2)
     )
     
     # If custom growth factors are provided, calculate using those too
